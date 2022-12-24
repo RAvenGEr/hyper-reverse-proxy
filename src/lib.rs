@@ -9,6 +9,7 @@ use hyper::http::uri::InvalidUri;
 use hyper::upgrade::OnUpgrade;
 use hyper::{Body, Client, Error, Request, Response, StatusCode};
 use std::net::IpAddr;
+use thiserror::Error as ThisError;
 use tokio::io::copy_bidirectional;
 
 static TE_HEADER: HeaderName = HeaderName::from_static("te");
@@ -31,24 +32,16 @@ static HOP_HEADERS: [HeaderName; 9] = [
 static X_FORWARDED_FOR: HeaderName = HeaderName::from_static("x-forwarded-for");
 static X_FORWARDED_HOST: HeaderName = HeaderName::from_static("x-forwarded-host");
 
-#[derive(Debug)]
+#[derive(Debug, ThisError)]
 pub enum ProxyError {
-    InvalidUri(InvalidUri),
-    HyperError(Error),
+    #[error("{0}")]
+    InvalidUri(#[from] InvalidUri),
+    #[error("{0}")]
+    HyperError(#[from] Error),
+    #[error("ForwardHeaderError")]
     ForwardHeaderError,
+    #[error("UpgradeError: {0}")]
     UpgradeError(String),
-}
-
-impl From<Error> for ProxyError {
-    fn from(err: Error) -> ProxyError {
-        ProxyError::HyperError(err)
-    }
-}
-
-impl From<InvalidUri> for ProxyError {
-    fn from(err: InvalidUri) -> ProxyError {
-        ProxyError::InvalidUri(err)
-    }
 }
 
 impl From<ToStrError> for ProxyError {
